@@ -10,7 +10,7 @@
 |------|------|----------|----------|
 | **V0.1** | 单文件 MVP，功能跑通 | `ai_assistant.py` | `git checkout V0.1` |
 | **V0.2** | 工程化重构（分层 + 流式输出 + 命令行参数） | `main.py` | `git checkout V0.2` |
-| **V0.3** | 提示工程小版本：模式化提示词 + 结构化题目解析 JSON 输出 | `main.py` | 当前 `main` 分支 |
+| **V0.3** | PDF 资料问答：上传 PDF → 提取文本 → 检索片段 → 结合 DeepSeek 回答 | `main.py` | 当前 `main` 分支 |
 
 ## 小版本路线图
 
@@ -18,8 +18,8 @@
 |------|----------|------|----------|
 | **V0.1** | ② LLM 调用 | 跑通 DeepSeek 网页聊天机器人 MVP | 能打开网页并完成单轮问答 |
 | **V0.2** | ② LLM 调用 | 完成工程化重构 | 配置、模型调用、界面入口分层；支持流式输出和命令行参数 |
-| **V0.3** | ③ 提示工程 | 加入可切换提示词模式 | 普通答疑和结构化题目解析能走不同 system prompt |
-| **V0.4** | ④ RAG | 上传 PDF 后基于资料回答 | 能读取 PDF、检索相关片段，并在回答中说明来源 |
+| **V0.3** | ④ RAG | 上传 PDF 后基于资料回答 | 能读取 PDF、检索相关片段，并在回答中说明来源页码 |
+| **V0.4** | ③ 提示工程 | 加强结构化输出和模板化提示词 | 能按固定格式输出题目解析卡、学习计划卡 |
 | **V0.5** | ⑤ Agent | 做会办事的课程助手 | 能按问题自动选择查资料、算题等工具 |
 | **V0.6** | ⑥ 产品化 | 从 demo 走向可交付服务 | API key 改为环境变量，补日志、限流、部署说明 |
 
@@ -33,11 +33,12 @@
 
 ## V0.2 → V0.3 新增了什么
 
-1. **模式化提示词**：`config.py` 新增 `MODE_PRESETS`，不同场景有不同 system prompt。
-2. **结构化题目解析**：新增「结构化题目解析」模式，要求模型只返回固定 JSON 解析卡。
-3. **低温度输出**：结构化模式使用 `temperature=0.3`，减少发散，更适合稳定格式。
-4. **界面模式选择**：Gradio 页面新增模式下拉框，用户不用改代码就能切换提示词。
-5. **轻量测试**：新增 `tests/test_client.py`，验证消息组装和历史记录兼容。
+1. **PDF 上传入口**：Gradio 页面新增 PDF 文件上传控件。
+2. **PDF 文本提取**：新增 `document.py`，使用 `pypdf` 读取 PDF 每页文字。
+3. **资料切块检索**：把 PDF 内容切成小片段，并按用户问题检索最相关内容。
+4. **带资料回答**：`client.py` 会把检索到的 PDF 片段拼进提示词，让 DeepSeek 基于资料回答。
+5. **来源页码**：资料片段包含页码，方便回答时说明依据来自哪一页。
+6. **轻量测试**：新增 `tests/test_client.py`，验证消息组装、历史记录兼容和资料检索。
 
 ## V0.3 目录结构
 
@@ -46,7 +47,8 @@ chatbot/
 ├── README.md          # 本说明
 ├── requirements.txt   # 依赖清单
 ├── .gitignore         # 忽略缓存等文件
-├── config.py          # 配置：key、模型、语气、界面文案
+├── config.py          # 配置：key、模型、语气、PDF 检索参数、界面文案
+├── document.py        # PDF 读取、切块和检索
 ├── client.py          # DeepSeek 客户端 + 流式对话函数
 ├── main.py            # 入口：Gradio 界面 + 命令行参数
 ├── tests/             # 自动化测试
@@ -67,11 +69,13 @@ python main.py --port 8000  # 换端口
 python main.py --share      # 生成临时公网链接
 ```
 
+进入页面后，先在「PDF 资料」处上传课件、讲义或路线图 PDF，再在聊天框里提问。
+
 ## 测试
 
 ```bash
 python -m unittest discover -s tests
-python -m py_compile config.py client.py main.py tests/test_client.py
+python -m py_compile config.py document.py client.py main.py tests/test_client.py
 ```
 
 ## 技术栈
@@ -79,6 +83,7 @@ python -m py_compile config.py client.py main.py tests/test_client.py
 - Python 3.12
 - [Gradio](https://www.gradio.app/) — 网页界面
 - [OpenAI SDK](https://github.com/openai/openai-python) — 调用 DeepSeek（兼容 OpenAI 接口）
+- [pypdf](https://pypdf.readthedocs.io/) — 提取 PDF 文本
 
 ## ⚠️ 安全说明
 

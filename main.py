@@ -33,11 +33,16 @@ def main():
         label="模式",
         info=client.get_mode_description(config.DEFAULT_MODE),
     )
+    pdf_upload = gr.File(
+        label="PDF 资料",
+        file_types=[".pdf"],
+        type="filepath",
+    )
     gr.ChatInterface(
         fn=client.chat_stream,        # 传生成器函数 → 自动流式显示
         title=config.APP_TITLE,
         description=config.APP_DESCRIPTION,
-        additional_inputs=[mode_selector],
+        additional_inputs=[mode_selector, pdf_upload],
     ).launch(
         server_name=args.server_name,
         server_port=args.port,

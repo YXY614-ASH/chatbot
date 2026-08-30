@@ -9,6 +9,7 @@
 from openai import OpenAI
 
 import config
+import document
 
 # 创建客户端（模块加载时执行一次，复用连接，不用每次提问都重建）
 _client = OpenAI(
@@ -51,23 +52,37 @@ def _append_history_messages(messages, history):
                 messages.append({"role": "assistant", "content": bot_msg})
 
 
-def _build_messages(message, history, mode=None):
+def _build_messages(message, history, mode=None, pdf_context=None):
     """把界面传来的「本次提问 + 历史对话」拼成模型要的 messages 格式。"""
     preset = _get_mode_preset(mode)
-    messages = [{"role": "system", "content": preset["system_prompt"]}]
+    system_prompt = preset["system_prompt"]
+    if pdf_context:
+        system_prompt = f"{system_prompt}\n\nPDF 资料片段：\n{pdf_context}"
+
+    messages = [{"role": "system", "content": system_prompt}]
     _append_history_messages(messages, history)
     messages.append({"role": "user", "content": message})
     return messages
 
 
-def chat_stream(message, history, mode=None):
+def chat_stream(message, history, mode=None, pdf_file=None):
     """流式对话：逐段返回模型回答，实现「打字机」效果。
 
     这是一个生成器（generator），用 yield 把一段段文本吐给界面，
     界面会边生成边显示，不用等整段答案算完。
     """
     preset = _get_mode_preset(mode)
-    messages = _build_messages(message, history, mode)
+    pdf_context = None
+
+    if mode == "PDF资料问答" and pdf_file:
+        try:
+            pdf_context, pdf_summary = document.build_pdf_context(pdf_file, message)
+            yield f"{pdf_summary}\n\n"
+        except Exception as exc:
+            yield f"⚠️ PDF 读取失败：{exc}"
+            return
+
+    messages = _build_messages(message, history, mode, pdf_context)
     try:
         stream = _client.chat.completions.create(
             model=config.MODEL,
