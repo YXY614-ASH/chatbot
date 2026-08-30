@@ -17,28 +17,62 @@ _client = OpenAI(
 )
 
 
-def _build_messages(message, history):
+def get_mode_names():
+    """返回界面可选的对话模式名称。"""
+    return list(config.MODE_PRESETS.keys())
+
+
+def get_mode_description(mode):
+    """返回当前模式的简短说明，用于界面提示。"""
+    preset = _get_mode_preset(mode)
+    return preset["description"]
+
+
+def _get_mode_preset(mode):
+    """找不到模式时回退到默认模式，避免界面传空值导致报错。"""
+    return config.MODE_PRESETS.get(mode) or config.MODE_PRESETS[config.DEFAULT_MODE]
+
+
+def _append_history_messages(messages, history):
+    """兼容 Gradio tuple history 和 messages history 两种格式。"""
+    for item in history or []:
+        if isinstance(item, dict):
+            role = item.get("role")
+            content = item.get("content")
+            if role in {"user", "assistant"} and content:
+                messages.append({"role": role, "content": content})
+            continue
+
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            user_msg, bot_msg = item[0], item[1]
+            if user_msg:
+                messages.append({"role": "user", "content": user_msg})
+            if bot_msg:
+                messages.append({"role": "assistant", "content": bot_msg})
+
+
+def _build_messages(message, history, mode=None):
     """把界面传来的「本次提问 + 历史对话」拼成模型要的 messages 格式。"""
-    messages = [{"role": "system", "content": config.SYSTEM_PROMPT}]
-    for user_msg, bot_msg in history:
-        messages.append({"role": "user", "content": user_msg})
-        messages.append({"role": "assistant", "content": bot_msg})
+    preset = _get_mode_preset(mode)
+    messages = [{"role": "system", "content": preset["system_prompt"]}]
+    _append_history_messages(messages, history)
     messages.append({"role": "user", "content": message})
     return messages
 
 
-def chat_stream(message, history):
+def chat_stream(message, history, mode=None):
     """流式对话：逐段返回模型回答，实现「打字机」效果。
 
     这是一个生成器（generator），用 yield 把一段段文本吐给界面，
     界面会边生成边显示，不用等整段答案算完。
     """
-    messages = _build_messages(message, history)
+    preset = _get_mode_preset(mode)
+    messages = _build_messages(message, history, mode)
     try:
         stream = _client.chat.completions.create(
             model=config.MODEL,
             messages=messages,
-            temperature=config.TEMPERATURE,
+            temperature=preset["temperature"],
             stream=True,  # 开启流式返回
         )
         for chunk in stream:

@@ -27,10 +27,17 @@ def parse_args():
 
 def main():
     args = parse_args()
+    mode_selector = gr.Dropdown(
+        choices=client.get_mode_names(),
+        value=config.DEFAULT_MODE,
+        label="模式",
+        info=client.get_mode_description(config.DEFAULT_MODE),
+    )
     gr.ChatInterface(
         fn=client.chat_stream,        # 传生成器函数 → 自动流式显示
         title=config.APP_TITLE,
         description=config.APP_DESCRIPTION,
+        additional_inputs=[mode_selector],
     ).launch(
         server_name=args.server_name,
         server_port=args.port,
