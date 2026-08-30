@@ -73,11 +73,13 @@ def chat_stream(message, history, mode=None, pdf_file=None):
     """
     preset = _get_mode_preset(mode)
     pdf_context = None
+    answer = ""
 
     if mode == "PDF资料问答" and pdf_file:
         try:
             pdf_context, pdf_summary = document.build_pdf_context(pdf_file, message)
-            yield f"{pdf_summary}\n\n"
+            answer = f"{pdf_summary}\n\n"
+            yield answer
         except Exception as exc:
             yield f"⚠️ PDF 读取失败：{exc}"
             return
@@ -93,6 +95,7 @@ def chat_stream(message, history, mode=None, pdf_file=None):
         for chunk in stream:
             delta = chunk.choices[0].delta
             if delta and delta.content:
-                yield delta.content
+                answer += delta.content
+                yield answer
     except Exception as exc:  # 捕获网络/额度/鉴权等异常，给用户友好提示
-        yield f"\n\n⚠️ 出错了：{exc}"
+        yield f"{answer}\n\n⚠️ 出错了：{exc}"

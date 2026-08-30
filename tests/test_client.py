@@ -5,6 +5,36 @@ import config
 import document
 
 
+class FakeDelta:
+    def __init__(self, content):
+        self.content = content
+
+
+class FakeChoice:
+    def __init__(self, content):
+        self.delta = FakeDelta(content)
+
+
+class FakeChunk:
+    def __init__(self, content):
+        self.choices = [FakeChoice(content)]
+
+
+class FakeCompletions:
+    def create(self, **kwargs):
+        return [FakeChunk("你"), FakeChunk("好")]
+
+
+class FakeChat:
+    def __init__(self):
+        self.completions = FakeCompletions()
+
+
+class FakeClient:
+    def __init__(self):
+        self.chat = FakeChat()
+
+
 class ClientMessageTests(unittest.TestCase):
     def test_mode_names_include_default_mode(self):
         self.assertIn(config.DEFAULT_MODE, client.get_mode_names())
@@ -46,6 +76,16 @@ class ClientMessageTests(unittest.TestCase):
         self.assertEqual(messages[1], {"role": "user", "content": "解释 RAG"})
         self.assertEqual(messages[2], {"role": "assistant", "content": "RAG 是先检索资料再回答。"})
         self.assertEqual(messages[3], {"role": "user", "content": "再短一点"})
+
+    def test_chat_stream_yields_accumulated_answer(self):
+        original_client = client._client
+        client._client = FakeClient()
+        try:
+            outputs = list(client.chat_stream("打个招呼", [], "学习助手"))
+        finally:
+            client._client = original_client
+
+        self.assertEqual(outputs, ["你", "你好"])
 
 
 class DocumentTests(unittest.TestCase):
