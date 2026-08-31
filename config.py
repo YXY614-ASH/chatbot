@@ -7,6 +7,9 @@
     只需要动这一个文件，不用去翻业务代码。
 """
 
+import prompt_templates
+
+
 # ============ 1. API 密钥 ============
 # ⚠️ 安全提醒：API key 等同于账户密码。
 #    这个仓库是公开的，下面的 key 已经随代码一起公开了。
@@ -37,6 +40,16 @@ MODE_PRESETS = {
 如果用户没有上传 PDF，先提醒用户上传 PDF，再提供通用回答。""",
         "description": "适合上传课件、路线图或讲义后，围绕 PDF 内容提问。",
     },
+    "题目解析卡": {
+        "temperature": 0.2,
+        "system_prompt": prompt_templates.QUESTION_ANALYSIS_CARD_PROMPT,
+        "description": "适合贴题目后输出固定格式的分析卡。",
+    },
+    "学习计划卡": {
+        "temperature": 0.4,
+        "system_prompt": prompt_templates.STUDY_PLAN_CARD_PROMPT,
+        "description": "适合输入学习目标后输出固定格式的计划卡。",
+    },
 }
 
 # ============ 4. PDF / RAG 配置 ============
@@ -46,4 +59,4 @@ PDF_TOP_K = 3                          # 每次提问取最相关的片段数量
 
 # ============ 5. 界面配置 ============
 APP_TITLE = "AI 学习助手"
-APP_DESCRIPTION = "上传 PDF 后提问，我会先检索资料片段，再结合 DeepSeek 回答。"
+APP_DESCRIPTION = "可上传 PDF 做资料问答，也可切换到题目解析卡或学习计划卡，按固定格式输出。"

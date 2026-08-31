@@ -21,7 +21,11 @@ class FakeChunk:
 
 
 class FakeCompletions:
+    def __init__(self):
+        self.last_kwargs = None
+
     def create(self, **kwargs):
+        self.last_kwargs = kwargs
         return [FakeChunk("你"), FakeChunk("好")]
 
 
@@ -38,6 +42,8 @@ class FakeClient:
 class ClientMessageTests(unittest.TestCase):
     def test_mode_names_include_default_mode(self):
         self.assertIn(config.DEFAULT_MODE, client.get_mode_names())
+        self.assertIn("题目解析卡", client.get_mode_names())
+        self.assertIn("学习计划卡", client.get_mode_names())
 
     def test_pdf_mode_accepts_context(self):
         messages = client._build_messages(
@@ -79,13 +85,47 @@ class ClientMessageTests(unittest.TestCase):
 
     def test_chat_stream_yields_accumulated_answer(self):
         original_client = client._client
-        client._client = FakeClient()
+        fake_client = FakeClient()
+        client._client = fake_client
         try:
             outputs = list(client.chat_stream("打个招呼", [], "学习助手"))
         finally:
             client._client = original_client
 
         self.assertEqual(outputs, ["你", "你好"])
+
+    def test_question_card_mode_uses_fixed_template(self):
+        messages = client._build_messages(
+            "电阻为 10 欧，电流为 2A，电压是多少？",
+            [],
+            "题目解析卡",
+        )
+
+        self.assertIn("# 题目解析卡", messages[0]["content"])
+        self.assertIn("## 解题思路", messages[0]["content"])
+        self.assertIn("## 最终答案", messages[0]["content"])
+
+    def test_study_plan_mode_uses_fixed_template(self):
+        messages = client._build_messages(
+            "两周内入门 RAG",
+            [],
+            "学习计划卡",
+        )
+
+        self.assertIn("# 学习计划卡", messages[0]["content"])
+        self.assertIn("## 阶段安排", messages[0]["content"])
+        self.assertIn("## 每周行动清单", messages[0]["content"])
+
+    def test_template_mode_uses_configured_temperature(self):
+        original_client = client._client
+        fake_client = FakeClient()
+        client._client = fake_client
+        try:
+            list(client.chat_stream("两周内入门 RAG", [], "学习计划卡"))
+        finally:
+            client._client = original_client
+
+        self.assertEqual(fake_client.chat.completions.last_kwargs["temperature"], 0.4)
 
 
 class DocumentTests(unittest.TestCase):
