@@ -11,7 +11,8 @@
 | **V0.1** | 单文件 MVP，功能跑通 | `ai_assistant.py` | `git checkout V0.1` |
 | **V0.2** | 工程化重构（分层 + 流式输出 + 命令行参数） | `main.py` | `git checkout V0.2` |
 | **V0.3** | PDF 资料问答：上传 PDF → 提取文本 → 检索片段 → 结合 DeepSeek 回答 | `main.py` | `git checkout V0.3` |
-| **V0.4** | 提示工程升级：题目解析卡 + 学习计划卡固定格式输出 | `main.py` | 当前 `main` 分支 |
+| **V0.4** | 提示工程升级：题目解析卡 + 学习计划卡固定格式输出 | `main.py` | `git checkout V0.4` |
+| **V0.5** | 课程助手 Agent：自动选择 PDF 检索、计算器等工具，再组织回答 | `main.py` | 当前 `main` 分支 |
 
 ## 小版本路线图
 
@@ -21,7 +22,7 @@
 | **V0.2** | ② LLM 调用 | 完成工程化重构 | 配置、模型调用、界面入口分层；支持流式输出和命令行参数 |
 | **V0.3** | ④ RAG | 上传 PDF 后基于资料回答 | 能读取 PDF、检索相关片段，并在回答中说明来源页码 |
 | **V0.4** | ③ 提示工程 | 加强结构化输出和模板化提示词 | 能按固定格式输出题目解析卡、学习计划卡 |
-| **V0.5** | ⑤ Agent | 做会办事的课程助手 | 能按问题自动选择查资料、算题等工具 |
+| **V0.5** | ⑤ Agent | 做会办事的课程助手 | 能按问题自动选择 PDF 检索、计算器等工具 |
 | **V0.6** | ⑥ 产品化 | 从 demo 走向可交付服务 | API key 改为环境变量，补日志、限流、部署说明 |
 
 ## V0.1 → V0.2 重构了什么
@@ -49,7 +50,15 @@
 4. **模板模式低温度**：结构化模板使用更低 temperature，让输出格式更稳定。
 5. **测试覆盖**：新增模板模式测试，验证模式存在、模板标题固定、调用温度正确。
 
-## V0.4 目录结构
+## V0.4 → V0.5 新增了什么
+
+1. **Agent 工具规划**：新增 `agent.py`，根据问题判断是否需要调用工具。
+2. **PDF资料检索工具**：Agent 可复用 V0.3 的 PDF 检索能力。
+3. **安全计算器工具**：支持数字、括号和基础四则运算，拒绝执行任意代码。
+4. **工具结果注入**：`client.py` 会把 Agent 工具结果拼进提示词，再交给 DeepSeek 组织回答。
+5. **可见工具过程**：回答开头会显示 Agent 工具计划和工具执行摘要，方便检查它做了什么。
+
+## V0.5 目录结构
 
 ```
 chatbot/
@@ -58,6 +67,7 @@ chatbot/
 ├── .gitignore         # 忽略缓存等文件
 ├── config.py          # 配置：key、模型、语气、PDF 检索参数、界面文案
 ├── prompt_templates.py # 固定格式提示词模板
+├── agent.py           # Agent 工具规划、PDF 检索和计算器调用
 ├── document.py        # PDF 读取、切块和检索
 ├── client.py          # DeepSeek 客户端 + 流式对话函数
 ├── main.py            # 入口：Gradio 界面 + 命令行参数
@@ -84,12 +94,13 @@ python main.py --share      # 生成临时公网链接
 1. 做资料问答：选择「PDF资料问答」，在「PDF 资料」处上传课件、讲义或路线图 PDF，再提问。
 2. 做题目解析：选择「题目解析卡」，贴入题目。
 3. 做学习规划：选择「学习计划卡」，输入学习目标和时间限制。
+4. 做工具联动：选择「课程助手Agent」，可上传 PDF 后提问，也可以直接输入算式题。
 
 ## 测试
 
 ```bash
 python -m unittest discover -s tests
-python -m py_compile config.py prompt_templates.py document.py client.py main.py tests/test_client.py
+python -m py_compile config.py prompt_templates.py document.py agent.py client.py main.py tests/test_client.py
 ```
 
 ## 技术栈

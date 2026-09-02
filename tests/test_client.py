@@ -1,5 +1,6 @@
 import unittest
 
+import agent
 import client
 import config
 import document
@@ -126,6 +127,38 @@ class ClientMessageTests(unittest.TestCase):
             client._client = original_client
 
         self.assertEqual(fake_client.chat.completions.last_kwargs["temperature"], 0.4)
+
+    def test_agent_mode_accepts_tool_context(self):
+        messages = client._build_messages(
+            "根据资料计算 12*(3+4)",
+            [],
+            "课程助手Agent",
+            agent_context="【计算器结果】\n12*(3+4) = 84",
+        )
+
+        self.assertIn("Agent 工具结果", messages[0]["content"])
+        self.assertIn("12*(3+4) = 84", messages[0]["content"])
+
+
+class AgentTests(unittest.TestCase):
+    def test_agent_plans_calculator_for_arithmetic(self):
+        tools = agent.plan_tools("帮我计算 12*(3+4) 等于多少？")
+
+        self.assertEqual(tools, ["calculator"])
+
+    def test_agent_plans_pdf_search_when_pdf_is_present(self):
+        tools = agent.plan_tools("根据资料说明下一阶段", pdf_file="lesson.pdf")
+
+        self.assertEqual(tools, ["pdf_search"])
+
+    def test_calculator_evaluates_safe_expression(self):
+        result = agent.calculate_from_text("帮我计算 12*(3+4)")
+
+        self.assertEqual(result["results"][0]["value"], "84")
+
+    def test_calculator_rejects_code_execution(self):
+        with self.assertRaises(ValueError):
+            agent.safe_eval("__import__('os').system('dir')")
 
 
 class DocumentTests(unittest.TestCase):

@@ -8,6 +8,7 @@
 
 from openai import OpenAI
 
+import agent
 import config
 import document
 
@@ -52,12 +53,14 @@ def _append_history_messages(messages, history):
                 messages.append({"role": "assistant", "content": bot_msg})
 
 
-def _build_messages(message, history, mode=None, pdf_context=None):
+def _build_messages(message, history, mode=None, pdf_context=None, agent_context=None):
     """把界面传来的「本次提问 + 历史对话」拼成模型要的 messages 格式。"""
     preset = _get_mode_preset(mode)
     system_prompt = preset["system_prompt"]
     if pdf_context:
         system_prompt = f"{system_prompt}\n\nPDF 资料片段：\n{pdf_context}"
+    if agent_context:
+        system_prompt = f"{system_prompt}\n\nAgent 工具结果：\n{agent_context}"
 
     messages = [{"role": "system", "content": system_prompt}]
     _append_history_messages(messages, history)
@@ -73,7 +76,17 @@ def chat_stream(message, history, mode=None, pdf_file=None):
     """
     preset = _get_mode_preset(mode)
     pdf_context = None
+    agent_context = None
     answer = ""
+
+    if mode == "课程助手Agent":
+        try:
+            agent_context, agent_summary = agent.run_agent_tools(message, pdf_file)
+            answer = f"{agent_summary}\n\n"
+            yield answer
+        except Exception as exc:
+            yield f"⚠️ Agent 工具执行失败：{exc}"
+            return
 
     if mode == "PDF资料问答" and pdf_file:
         try:
@@ -84,7 +97,7 @@ def chat_stream(message, history, mode=None, pdf_file=None):
             yield f"⚠️ PDF 读取失败：{exc}"
             return
 
-    messages = _build_messages(message, history, mode, pdf_context)
+    messages = _build_messages(message, history, mode, pdf_context, agent_context)
     try:
         stream = _client.chat.completions.create(
             model=config.MODEL,
