@@ -65,7 +65,7 @@ def run_agent_tools(question, pdf_file=None):
         visible_lines.append(f"- 计算器：{calculation['summary']}")
         if calculation["results"]:
             lines = [
-                f"{item['expression']} = {item['value']}"
+                f"{item['display_expression']} = {item['value']}"
                 for item in calculation["results"]
             ]
             results.append("【计算器结果】\n" + "\n".join(lines))
@@ -82,18 +82,32 @@ def calculate_from_text(text):
     for expression in expressions:
         try:
             value = safe_eval(expression)
-            results.append({"expression": expression, "value": _format_number(value)})
+            results.append({
+                "expression": expression,
+                "display_expression": format_formula(expression),
+                "value": _format_number(value),
+            })
         except Exception as exc:
-            errors.append(f"{expression}: {exc}")
+            errors.append(f"{format_formula(expression)}: {exc}")
 
     if results:
-        summary = "；".join(f"{item['expression']} = {item['value']}" for item in results)
+        summary = "；".join(f"{item['display_expression']} = {item['value']}" for item in results)
     elif errors:
         summary = "找到算式但计算失败：" + "；".join(errors)
     else:
         summary = "没有识别到可直接计算的算式"
 
     return {"results": results, "errors": errors, "summary": summary}
+
+
+def format_formula(expression):
+    """把内部计算表达式转成更像数学公式的显示形式。"""
+    display = expression.replace("**", "^")
+    display = display.replace("*", " × ").replace("/", " ÷ ")
+    display = display.replace("+", " + ").replace("-", " - ")
+    display = re.sub(r"\s+", " ", display)
+    display = display.replace("( ", "(").replace(" )", ")")
+    return display.strip()
 
 
 def extract_expressions(text):

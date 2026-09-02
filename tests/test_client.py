@@ -133,11 +133,11 @@ class ClientMessageTests(unittest.TestCase):
             "根据资料计算 12*(3+4)",
             [],
             "课程助手Agent",
-            agent_context="【计算器结果】\n12*(3+4) = 84",
+            agent_context="【计算器结果】\n12 × (3 + 4) = 84",
         )
 
         self.assertIn("Agent 工具结果", messages[0]["content"])
-        self.assertIn("12*(3+4) = 84", messages[0]["content"])
+        self.assertIn("12 × (3 + 4) = 84", messages[0]["content"])
 
 
 class AgentTests(unittest.TestCase):
@@ -155,6 +155,11 @@ class AgentTests(unittest.TestCase):
         result = agent.calculate_from_text("帮我计算 12*(3+4)")
 
         self.assertEqual(result["results"][0]["value"], "84")
+        self.assertEqual(result["results"][0]["display_expression"], "12 × (3 + 4)")
+        self.assertEqual(result["summary"], "12 × (3 + 4) = 84")
+
+    def test_formula_display_uses_math_symbols(self):
+        self.assertEqual(agent.format_formula("8/2+3**2"), "8 ÷ 2 + 3^2")
 
     def test_calculator_rejects_code_execution(self):
         with self.assertRaises(ValueError):
